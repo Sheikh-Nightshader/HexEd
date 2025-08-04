@@ -34,4 +34,5 @@ No additional dependencies required
 
 
 About:
+
 HEXED is developed by Sheikh Nightshader for ROM editing, and technical experimentation. It is tailored for use in reverse engineering, game modding, and low-level file work where precision and simplicity matter.
