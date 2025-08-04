@@ -1,11 +1,11 @@
 
-HEXED
+HexEd
 
 Sheikh Nightshader's Hex Editing and Interleaving Tool
 
 Description:
 
-HEXED is a powerful and minimalistic hex manipulation utility built for ROM hackers, modders, and developers working with raw binary data. It allows users to edit binary files in hexadecimal format, perform interleaving and uninterleaving operations with custom byte intervals, and export the results easily. No GUI or bloat — just a fast, scriptable command-line experience.
+HexEd is a powerful and minimalistic hex manipulation utility built for ROM hackers, modders, and developers working with raw binary data. It allows users to edit binary files in hexadecimal format, perform interleaving and uninterleaving operations with custom byte intervals, and export the results easily. No GUI or bloat — just a fast, scriptable command-line experience.
 
 Key Features:
 
@@ -35,4 +35,4 @@ No additional dependencies required
 
 About:
 
-HEXED is developed by Sheikh Nightshader for ROM editing, and technical experimentation. It is tailored for use in reverse engineering, game modding, and low-level file work where precision and simplicity matter.
+HexEd is developed by Sheikh Nightshader for ROM editing, and technical experimentation. It is tailored for use in reverse engineering, game modding, and low-level file work where precision and simplicity matter.
