@@ -28,7 +28,7 @@ Requirements:
 
 Python 3.x
 
-Compatible with Windows, Linux, macOS and Android using Termux with python3 installed.
+Compatible with Windows, Linux, macOS and Android using Termux with python3 installed and Pydroid
 
 No additional dependencies required
 
