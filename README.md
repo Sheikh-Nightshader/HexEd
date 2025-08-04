@@ -1,45 +1,39 @@
+
 HEXED
-Sheikhs Hex Editor
 
-Description
-HEXED is a simple, powerful hex editing and file manipulation tool designed for developers, ROM hackers, and data modders. It includes core features like hex editing, byte interleaving and uninterleaving, and binary file analysis.
+Sheikh Nightshader's Hex Editing and Interleaving Tool
 
-Features
+Description:
+HEXED is a powerful and minimalistic hex manipulation utility built for ROM hackers, modders, and developers working with raw binary data. It allows users to edit binary files in hexadecimal format, perform interleaving and uninterleaving operations with custom byte intervals, and export the results easily. No GUI or bloat — just a fast, scriptable command-line experience.
 
-Open and edit files in raw hexadecimal
+Key Features:
 
-Interleave and uninterleave files with customizable byte patterns
+Load any binary file and view raw hexadecimal bytes
 
-Clean and lightweight interface
+Edit byte values directly in memory and save changes
 
-Written in Python for easy extension
+Interleave two files with user-defined byte separation
+
+Uninterleave a file into two parts by specifying byte gaps
+
+Prompts user for interleave gap, input paths, and output names
+
+Automatically skips incomplete byte pairs if necessary
+
+Easy-to-understand terminal interface
 
 
-Requirements
+Requirements:
 
 Python 3.x
 
-Works on Windows, Linux, macOS, Android using Termux
+Compatible with Windows, Linux, macOS and Android using Termux with python3 installed.
+
+No additional dependencies required
 
 
-Usage
+About:
+HEXED is developed by Sheikh Nightshader for ROM editing, arcade hacking, and technical experimentation. It is tailored for use in reverse engineering, game modding, and low-level file work where precision and simplicity matter.
 
-1. Launch the tool (command = python3 hexed.py)
-
-
-2. Choose from the menu options:
-
-Open File for Hex Editing
-
-Interleave or Uninterleave files
-
-Quit
-
-
-
-3. Follow on-screen instructions to load files and apply operations
-
-
-
-Created by Sheikh Nightshader as a utility for ROM hacking and binary file work. HEXED is free to use for your own projects.
-
+License
+HEXED is released into the public domain. You are free to use, modify, and distribute it as needed. No restrictions apply.
