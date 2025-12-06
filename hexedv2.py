@@ -184,46 +184,53 @@ def print_palette_grid(data, pal_off, count, cols=16, fmt='rgb555', endian='le')
 
         print(f"{row_offset:06X}  " + " ".join(line_colors) + "  " + " ".join(line_hexes))
 
-    print("\nCommands: e-edit  o-offset  c-count  f-toggle-format  n-toggle-endian  s-save  r-reload  q-back")
+    print("\nCommands: e-edit  o-offset  c-count  f-toggle-format  n-toggle-endian  s-save  r-reload  p-paste  q-back")
 
 def edit_palette_entry_by_offset(data, offset, fmt, endian):
-    if offset+1 >= len(data):
-        print("Offset out of range")
-        input("Enter to continue...")
-        return
-    if endian == 'le':
-        curv = data[offset] | (data[offset+1] << 8)
-    else:
-        curv = (data[offset] << 8) | data[offset+1]
-    print(f"Current value at 0x{offset:06X}: 0x{curv:04X}")
-    new = input("Enter new 16-bit hex or 'r,g,b': ").strip()
-    if not new:
-        return
-    if ',' in new:
-        try:
-            r,g,b = [int(x) for x in new.split(',')]
-            r5 = (r*31)//255
-            g5 = (g*31)//255
-            b5 = (b*31)//255
-            v = (r5<<10)|(g5<<5)|b5
-        except:
-            print("Bad rgb")
+    try:
+        hx = input("Enter hex values (groups of 4 digits): ").strip().replace(" ", "").replace(",", "")
+        if len(hx) == 0 or len(hx) % 4 != 0:
+            print("Invalid hex length.")
             input("Enter to continue...")
             return
-    else:
-        try:
-            v = int(new,16) & 0xFFFF
-        except:
-            print("Bad hex")
+        for i in range(0, len(hx), 4):
+            v = int(hx[i:i+4], 16)
+            o = offset + (i//4)*2
+            if o+1 >= len(data):
+                break
+            if endian == 'le':
+                data[o] = v & 0xFF
+                data[o+1] = (v >> 8) & 0xFF
+            else:
+                data[o] = (v >> 8) & 0xFF
+                data[o+1] = v & 0xFF
+        print("Written.")
+    except:
+        print("Bad hex.")
+    input("Enter to continue...")
+
+def paste_palette_hex(data, offset, hex_data, endian):
+    try:
+        cleaned = hex_data.replace(" ", "").replace("\n", "").replace("\r", "").replace(",", "")
+        if len(cleaned) % 4 != 0:
+            print("Invalid length. Need multiples of 4 hex digits per 16-bit color.")
             input("Enter to continue...")
             return
-    if endian == 'le':
-        data[offset] = v & 0xFF
-        data[offset+1] = (v>>8) & 0xFF
-    else:
-        data[offset] = (v>>8) & 0xFF
-        data[offset+1] = v & 0xFF
-    print("Written.")
+        for i in range(0, len(cleaned), 4):
+            j = i // 4
+            v = int(cleaned[i:i+4], 16) & 0xFFFF
+            o = offset + j*2
+            if o+1 >= len(data):
+                break
+            if endian == 'le':
+                data[o] = v & 0xFF
+                data[o+1] = (v >> 8) & 0xFF
+            else:
+                data[o] = (v >> 8) & 0xFF
+                data[o+1] = v & 0xFF
+        print("Pasted.")
+    except Exception as e:
+        print(f"Pasting failed: {e}")
     input("Enter to continue...")
 
 def palette_viewer(data, path, start_offset=0):
@@ -267,6 +274,20 @@ def palette_viewer(data, path, start_offset=0):
             fresh = load_file(path)
             if fresh:
                 data[:] = fresh
+        elif cmd == 'p':
+            try:
+                off = int(input("Hex offset: "),16)
+                hx_lines = []
+                print("Paste hex colors (4 hex digits per color). End with a blank line.")
+                while True:
+                    line = input()
+                    if line.strip() == "":
+                        break
+                    hx_lines.append(line)
+                hx = "\n".join(hx_lines)
+                paste_palette_hex(data, off, hx, endian)
+            except:
+                pass
         else:
             pass
 
@@ -338,7 +359,7 @@ def main_menu():
   H   H  E       X X   E      D   D
   H   H  EEEEE  X   X  EEEEE  DDDD
                          
-         \033[94mSheikh's HexEditor v2.2\033[0m
+      \033[94mSheikh's HexEditor v2.2\033[0m
 \033[0m
     """
     while True:
