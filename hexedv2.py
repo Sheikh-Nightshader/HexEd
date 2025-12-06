@@ -179,7 +179,7 @@ def print_palette_grid(data, pal_off, count, cols=16, fmt='rgb555', endian='le')
             else:
                 r, g, b = rgb5551_to_rgb888(v)
 
-            line_colors.append(bg_block(r, g, b, 6))
+            line_colors.append(bg_block(r, g, b, 2))
             line_hexes.append(f"{v:04X}".ljust(6))
 
         print(f"{row_offset:06X}  " + " ".join(line_colors) + "  " + " ".join(line_hexes))
