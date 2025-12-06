@@ -1,5 +1,5 @@
 
-HexEd
+HexEd   **Now at Version 2.2**
 
 Sheikh Nightshader's Hex Editing and Interleaving Tool
 
