@@ -173,22 +173,21 @@ def print_palette_grid(data, pal_off, count, cols, fmt, endian):
             else:
                 r,g,b = rgb5551_to_rgb888(v)
             line += bg_block(r,g,b,6) + " "
-            ids += f"{idx:04d} "
+            ids += f"{addr:06X} "
         print(line)
         print(ids)
     print("\nCommands: e-edit  o-offset  c-count  f-toggle-format  n-toggle-endian  s-save  r-reload  q-back")
 
-def edit_palette_entry(data, pal_off, idx, endian):
-    addr = pal_off + idx*2
-    if addr+1 >= len(data):
-        print("Index out of range")
+def edit_palette_entry_by_offset(data, offset, fmt, endian):
+    if offset+1 >= len(data):
+        print("Offset out of range")
         input("Enter to continue...")
         return
     if endian == 'le':
-        curv = data[addr] | (data[addr+1] << 8)
+        curv = data[offset] | (data[offset+1] << 8)
     else:
-        curv = (data[addr] << 8) | data[addr+1]
-    print(f"Current value at index {idx}: 0x{curv:04X}")
+        curv = (data[offset] << 8) | data[offset+1]
+    print(f"Current value at 0x{offset:06X}: 0x{curv:04X}")
     new = input("Enter new 16-bit hex or 'r,g,b': ").strip()
     if not new:
         return
@@ -211,11 +210,11 @@ def edit_palette_entry(data, pal_off, idx, endian):
             input("Enter to continue...")
             return
     if endian == 'le':
-        data[addr] = v & 0xFF
-        data[addr+1] = (v>>8) & 0xFF
+        data[offset] = v & 0xFF
+        data[offset+1] = (v>>8) & 0xFF
     else:
-        data[addr] = (v>>8) & 0xFF
-        data[addr+1] = v & 0xFF
+        data[offset] = (v>>8) & 0xFF
+        data[offset+1] = v & 0xFF
     print("Written.")
     input("Enter to continue...")
 
@@ -235,8 +234,8 @@ def palette_viewer(data, path, start_offset=0):
             break
         elif cmd == 'e':
             try:
-                idx = int(input("index #: "))
-                edit_palette_entry(data, pal_off, idx, endian)
+                off = int(input("Hex offset: "),16)
+                edit_palette_entry_by_offset(data, off, fmt, endian)
             except:
                 pass
         elif cmd == 'o':
