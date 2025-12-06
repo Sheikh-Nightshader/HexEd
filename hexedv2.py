@@ -148,34 +148,42 @@ def rgb5551_to_rgb888(v):
 def bg_block(r,g,b,w=6):
     return f"\x1b[48;2;{r};{g};{b}m" + " " * w + "\x1b[0m"
 
-def print_palette_grid(data, pal_off, count, cols, fmt, endian):
+def print_palette_grid(data, pal_off, count, cols=16, fmt='rgb555', endian='le'):
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"\033[95m=== Palette Viewer — Sheikh Nightshader ===\033[0m")
-    print(f"Offset: 0x{pal_off:X}  Entries: {count}  Cols: {cols}  Format: {fmt}  Endian: {endian}")
-    print()
+    print(f"Offset: 0x{pal_off:X}  Entries: {count}  Format: {fmt}  Endian: {endian}\n")
+
     rows = (count + cols - 1) // cols
+
     for row in range(rows):
-        line = ""
-        ids = ""
+        row_start_idx = row * cols
+        row_offset = pal_off + row_start_idx * 2
+        line_colors = []
+        line_hexes = []
+
         for col in range(cols):
-            idx = row*cols + col
-            addr = pal_off + idx*2
-            if idx >= count or addr+1 >= len(data):
-                line += " " * 7
-                ids += " " * 7
+            idx = row_start_idx + col
+            addr = pal_off + idx * 2
+            if idx >= count or addr + 1 >= len(data):
+                line_colors.append(" " * 6)
+                line_hexes.append(" " * 6)
                 continue
+
             if endian == 'le':
-                v = data[addr] | (data[addr+1] << 8)
+                v = data[addr] | (data[addr + 1] << 8)
             else:
-                v = (data[addr] << 8) | data[addr+1]
+                v = (data[addr] << 8) | data[addr + 1]
+
             if fmt == 'rgb555':
-                r,g,b = rgb555_to_rgb888(v)
+                r, g, b = rgb555_to_rgb888(v)
             else:
-                r,g,b = rgb5551_to_rgb888(v)
-            line += bg_block(r,g,b,6) + " "
-            ids += f"{addr:06X} "
-        print(line)
-        print(ids)
+                r, g, b = rgb5551_to_rgb888(v)
+
+            line_colors.append(bg_block(r, g, b, 6))
+            line_hexes.append(f"{v:04X}".ljust(6))
+
+        print(f"{row_offset:06X}  " + " ".join(line_colors) + "  " + " ".join(line_hexes))
+
     print("\nCommands: e-edit  o-offset  c-count  f-toggle-format  n-toggle-endian  s-save  r-reload  q-back")
 
 def edit_palette_entry_by_offset(data, offset, fmt, endian):
