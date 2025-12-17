@@ -25,7 +25,10 @@ Automatically skips incomplete byte pairs if necessary
 
 Easy-to-understand terminal interface
 
+UPDATES:
+
 Version 2.2 adds new CLI Palette viewer RGB 555/RGB5551
+
 Version 2.3 adds RGB 444 to Palette viewer
 
 Requirements:
