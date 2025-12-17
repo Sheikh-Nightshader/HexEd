@@ -1,4 +1,6 @@
-import os
+#!/usr/bin/env python3
+#version 2.3
+import os,sys,struct
 
 def load_file(path):
     try:
@@ -24,7 +26,7 @@ def hex_page(data, offset, lines=16):
         hex_str = ' '.join(f"{b:02X}" for b in row)
         ascii_str = ''.join(chr(b) if 32 <= b < 127 else '.' for b in row)
         print(f"{i:06X}  {hex_str:<47}  {ascii_str}")
-    print("\nCommands: n-next  p-prev  j-jump  s-search  e-edit  w-write  a-save-as  i-interleave options  q-quit")
+    print("\nCommands: n-next  p-prev  j-jump  s-search  e-edit  w-write  a-save-as  v-palette viewer  i-interleave options  q-quit")
 
 def find_ascii(data, text, case_sensitive=True):
     results = []
@@ -126,89 +128,246 @@ def interleave_menu():
         print("\033[91mInvalid choice.\033[0m")
     input("Press Enter to continue...")
 
+def rgb555_to_rgb888(v):
+    r = (v >> 10) & 0x1F
+    g = (v >> 5) & 0x1F
+    b = v & 0x1F
+    r = (r * 255) // 31
+    g = (g * 255) // 31
+    b = (b * 255) // 31
+    return r,g,b
+
+def rgb5551_to_rgb888(v):
+    r = (v >> 11) & 0x1F
+    g = (v >> 6) & 0x1F
+    b = (v >> 1) & 0x1F
+    r = (r * 255) // 31
+    g = (g * 255) // 31
+    b = (b * 255) // 31
+    return r,g,b
+
+def rgb444_to_rgb888(v):
+    # Big-endian: word = [BBBB GGGG RRRR]
+    r = v & 0xF          
+    g = (v >> 4) & 0xF   
+    b = (v >> 8) & 0xF   
+    # scale 0-15 → 0-255
+    r = (r * 255) // 15
+    g = (g * 255) // 15
+    b = (b * 255) // 15
+    return r, g, b
+
+def bg_block(r,g,b,w=6):
+    return f"\x1b[48;2;{r};{g};{b}m" + " " * w + "\x1b[0m"
+
+def print_palette_grid(data, pal_off, count, cols=16, fmt='rgb555', endian='le'):
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(f"\033[95m=== Palette Viewer — Sheikh Nightshader ===\033[0m")
+    print(f"Offset: 0x{pal_off:X}  Entries: {count}  Format: {fmt}  Endian: {endian}\n")
+
+    rows = (count + cols - 1) // cols
+
+    for row in range(rows):
+        row_start_idx = row * cols
+        row_offset = pal_off + row_start_idx * 2
+        line_colors = []
+        line_hexes = []
+
+        for col in range(cols):
+            idx = row_start_idx + col
+            addr = pal_off + idx * 2
+            if idx >= count or addr + 1 >= len(data):
+                line_colors.append(" " * 6)
+                line_hexes.append(" " * 6)
+                continue
+
+            if endian == 'le':
+                v = data[addr] | (data[addr + 1] << 8)
+            else:
+                v = (data[addr] << 8) | data[addr + 1]
+
+            if fmt == 'rgb555':
+                r, g, b = rgb555_to_rgb888(v)
+            elif fmt == 'rgb5551':
+                r, g, b = rgb5551_to_rgb888(v)
+            elif fmt == 'rgb444':
+                r, g, b = rgb444_to_rgb888(v)
+
+            line_colors.append(bg_block(r, g, b, 2))
+            line_hexes.append(f"{v:04X}".ljust(6))
+
+        print(f"{row_offset:06X}  " + " ".join(line_colors) + "  " + " ".join(line_hexes))
+
+    print("\nCommands: e-edit  o-offset  c-count  f-toggle-format  n-toggle-endian  s-save  r-reload  p-paste  q-back")
+
+def edit_palette_entry_by_offset(data, offset, fmt, endian):
+    try:
+        hx = input("Enter hex values (groups of 4 digits): ").strip().replace(" ", "").replace(",", "")
+        if len(hx) == 0 or len(hx) % 4 != 0:
+            print("Invalid hex length.")
+            input("Enter to continue...")
+            return
+        for i in range(0, len(hx), 4):
+            v = int(hx[i:i+4], 16)
+            o = offset + (i//4)*2
+            if o+1 >= len(data):
+                break
+            if endian == 'le':
+                data[o] = v & 0xFF
+                data[o+1] = (v >> 8) & 0xFF
+            else:
+                data[o] = (v >> 8) & 0xFF
+                data[o+1] = v & 0xFF
+        print("Written.")
+    except:
+        print("Bad hex.")
+    input("Enter to continue...")
+
+def paste_palette_hex(data, offset, hex_data, endian):
+    try:
+        cleaned = hex_data.replace(" ", "").replace("\n", "").replace("\r", "").replace(",", "")
+        if len(cleaned) % 4 != 0:
+            print("Invalid length. Need multiples of 4 hex digits per 16-bit color.")
+            input("Enter to continue...")
+            return
+        for i in range(0, len(cleaned), 4):
+            j = i // 4
+            v = int(cleaned[i:i+4], 16) & 0xFFFF
+            o = offset + j*2
+            if o+1 >= len(data):
+                break
+            if endian == 'le':
+                data[o] = v & 0xFF
+                data[o+1] = (v >> 8) & 0xFF
+            else:
+                data[o] = (v >> 8) & 0xFF
+                data[o+1] = v & 0xFF
+        print("Pasted.")
+    except Exception as e:
+        print(f"Pasting failed: {e}")
+    input("Enter to continue...")
+
+def palette_viewer(data, path, start_offset=0):
+    pal_off = start_offset
+    if pal_off < 0:
+        pal_off = 0
+    pal_off = pal_off - (pal_off % 2)
+    count = 256
+    cols = 16
+    fmt = 'rgb555'
+    endian = 'le'
+    while True:
+        print_palette_grid(data, pal_off, count, cols, fmt, endian)
+        cmd = input("pal> ").strip().lower()
+        if cmd == 'q':
+            break
+        elif cmd == 'e':
+            try:
+                off = int(input("Hex offset: "),16)
+                edit_palette_entry_by_offset(data, off, fmt, endian)
+            except:
+                pass
+        elif cmd == 'o':
+            try:
+                pal_off = int(input("hex offset: "),0)
+                pal_off = pal_off - (pal_off % 2)
+            except:
+                pass
+        elif cmd == 'c':
+            try:
+                count = int(input("count: "))
+            except:
+                pass
+        elif cmd == 'f':
+            if fmt == 'rgb555':
+                fmt = 'rgb5551'
+            elif fmt == 'rgb5551':
+                fmt = 'rgb444'
+            else:
+                fmt = 'rgb555'
+        elif cmd == 'n':
+            endian = 'be' if endian == 'le' else 'le'
+        elif cmd == 's':
+            save_file(path, data)
+        elif cmd == 'r':
+            fresh = load_file(path)
+            if fresh:
+                data[:] = fresh
+        elif cmd == 'p':
+            try:
+                off = int(input("Hex offset: "),16)
+                hx_lines = []
+                print("Paste hex colors (4 hex digits per color). End with a blank line.")
+                while True:
+                    line = input()
+                    if line.strip() == "":
+                        break
+                    hx_lines.append(line)
+                hx = "\n".join(hx_lines)
+                paste_palette_hex(data, off, hx, endian)
+            except:
+                pass
+        else:
+            pass
+
 def viewer(data, path):
     offset = 0
     results = []
-
     while True:
         hex_page(data, offset)
         cmd = input("Command: ").strip().lower()
-
         if cmd == 'n':
-            offset = min(len(data) - 1, offset + 16 * 16)
+            offset = min(len(data)-1, offset + 256)
         elif cmd == 'p':
-            offset = max(0, offset - 16 * 16)
+            offset = max(0, offset - 256)
         elif cmd == 'j':
             try:
-                offset = int(input("Jump to offset (hex): "), 16)
+                offset = int(input("offset hex: "),16)
             except:
-                print("Invalid offset.")
-                input("Press Enter to continue...")
-
+                pass
         elif cmd == 's':
             mode = input("Search [t]ext or [h]ex? ").strip().lower()
             results = []
             if mode == 't':
-                text = input("Enter ASCII text to search: ")
-                cs = input("Case-sensitive? (y/n): ").strip().lower() == 'y'
+                text = input("ASCII: ")
+                cs = input("Case-sensitive? (y/n): ").strip().lower()=='y'
                 results = find_ascii(data, text, cs)
             elif mode == 'h':
-                hexstr = input("Enter hex pattern (e.g. DE AD BE EF): ")
+                hexstr = input("Hex: ")
                 results = find_hex(data, hexstr)
-
             if results:
-                print(f"{len(results)} match(es) found.")
-                for idx, res in enumerate(results):
-                    print(f"[{idx}] at 0x{res:06X}")
+                for i,r in enumerate(results):
+                    print(f"[{i}] at 0x{r:06X}")
                 try:
-                    sel = 0 if len(results) == 1 else int(input("Jump to index #: "))
-                    if 0 <= sel < len(results):
-                        offset = results[sel]
-                        input("Jumped. Press Enter to continue...")
-                    else:
-                        print("Invalid selection.")
-                        input("Press Enter to continue...")
+                    sel = int(input("jump #: "))
+                    offset = results[sel]
                 except:
-                    print("Invalid input.")
-                    input("Press Enter to continue...")
-            else:
-                print("No matches found.")
-                input("Press Enter to continue...")
-
+                    pass
+            input("Press Enter...")
         elif cmd == 'e':
+            mode = input("Edit [t]ext or [h]ex? ").strip().lower()
             try:
-                mode = input("Edit [t]ext or [h]ex? ").strip().lower()
                 if mode == 't':
-                    off = int(input("Text offset (hex): "), 16)
-                    max_len = int(input("Max length of text to replace: "))
+                    off = int(input("offset hex: "),16)
+                    max_len = int(input("max len: "))
                     edit_text_at_offset(data, off, max_len)
-                elif mode == 'h':
-                    off = int(input("Hex offset (hex): "), 16)
-                    hex_input = input("New hex bytes: ")
-                    edit_bytes(data, off, hex_input)
                 else:
-                    print("Unknown edit type.")
-                    input("Press Enter to continue...")
+                    off = int(input("offset hex: "),16)
+                    hx = input("hex bytes: ")
+                    edit_bytes(data, off, hx)
             except:
-                print("Invalid input.")
-                input("Press Enter to continue...")
-
+                pass
         elif cmd == 'w':
             save_file(path, data)
-
         elif cmd == 'a':
-            new_path = input("Enter new filename to save as: ").strip()
-            if new_path:
-                save_file(new_path, data)
-
+            p = input("new filename: ").strip()
+            save_file(p, data)
         elif cmd == 'i':
             interleave_menu()
-
+        elif cmd == 'v':
+            palette_viewer(data, path, offset)
         elif cmd == 'q':
             break
-        else:
-            print("Unknown command.")
-            input("Press Enter to continue...")
 
 def main_menu():
     title = """
@@ -219,39 +378,25 @@ def main_menu():
   H   H  E       X X   E      D   D
   H   H  EEEEE  X   X  EEEEE  DDDD
                          
-         \033[94mSheikh's HexEditor\033[0m
+      \033[94mSheikh's HexEditor v2.3\033[0m
 \033[0m
     """
-
-    options = [
-        "1. Open File for Hex Editing",
-        "2. Interleave / Uninterleave",
-        "3. Quit"
-    ]
-
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(title)
-        for opt in options:
-            print(opt)
-        choice = input("\nSelect an option: ").strip()
-
-        if choice == '1':
-            path = input("Enter file path: ").strip()
-            if not os.path.isfile(path):
-                print("File not found.")
-                input("Press Enter to continue...")
-            else:
+        print("1. Open File")
+        print("2. Interleave / Uninterleave")
+        print("3. Quit")
+        c = input("> ").strip()
+        if c == '1':
+            path = input("File: ").strip()
+            if os.path.isfile(path):
                 data = load_file(path)
-                if data:
-                    viewer(data, path)
-        elif choice == '2':
+                viewer(data, path)
+        elif c == '2':
             interleave_menu()
-        elif choice == '3':
+        elif c == '3':
             break
-        else:
-            print("Invalid choice.")
-            input("Press Enter to continue...")
 
 if __name__ == "__main__":
     main_menu()
