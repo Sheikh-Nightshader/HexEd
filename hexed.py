@@ -147,11 +147,9 @@ def rgb5551_to_rgb888(v):
     return r,g,b
 
 def rgb444_to_rgb888(v):
-    # Big-endian: word = [BBBB GGGG RRRR]
     r = v & 0xF          
     g = (v >> 4) & 0xF   
     b = (v >> 8) & 0xF   
-    # scale 0-15 → 0-255
     r = (r * 255) // 15
     g = (g * 255) // 15
     b = (b * 255) // 15
